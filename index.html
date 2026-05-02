@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cat Breed Identifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C47A5A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="CatBreedID">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --cream: #FDF8F2; --warm-white: #FFFCF8; --beige: #F5EDE0; --beige-dark: #EAD9C4;
+    --blush: #F2D5C8; --sage: #B8C9B8; --terracotta: #C47A5A; --terracotta-dark: #A05E3F;
+    --text-dark: #3A2D26; --text-mid: #7A6055; --text-light: #A89085;
+    --shadow: rgba(107,76,59,0.12); --radius-sm: 12px; --radius-md: 18px; --radius-lg: 24px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text-dark); min-height: 100vh; display: flex; justify-content: center; }
+  .phone-shell { width: 100%; max-width: 420px; min-height: 100vh; background: var(--warm-white); display: flex; flex-direction: column; }
+  .screen { display: none; flex-direction: column; flex: 1; }
+  .screen.active { display: flex; animation: slideUp 0.3s ease-out; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  #homeScreen { background: var(--warm-white); position: relative; overflow: hidden; }
+  .home-bg-blob { position: absolute; top: -60px; right: -60px; width: 260px; height: 260px; background: radial-gradient(circle, var(--blush) 0%, transparent 70%); border-radius: 50%; opacity: 0.6; pointer-events: none; }
+  .home-bg-blob-2 { position: absolute; bottom: 120px; left: -80px; width: 220px; height: 220px; background: radial-gradient(circle, var(--beige) 0%, transparent 70%); border-radius: 50%; opacity: 0.8; pointer-events: none; }
+  .home-header { padding: 20px 28px 0; position: relative; z-index: 2; }
+  .app-label { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--terracotta); margin-bottom: 6px; }
+  .app-title { font-family: 'Playfair Display', serif; font-size: 34px; font-weight: 700; color: var(--text-dark); line-height: 1.1; }
+  .app-tagline { font-size: 14px; color: var(--text-mid); margin-top: 10px; line-height: 1.5; font-weight: 300; }
+  .hero-emoji { font-size: 100px; text-align: center; margin: 24px auto 0; display: block; line-height: 1; }
+  .home-actions { padding: 24px 28px 40px; display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 2; }
+  .btn-primary { background: var(--terracotta); color: white; border: none; border-radius: var(--radius-md); padding: 18px 24px; font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background 0.2s, transform 0.1s; box-shadow: 0 4px 16px rgba(196,122,90,0.3); }
+  .btn-primary:active { transform: scale(0.98); background: var(--terracotta-dark); }
+  .btn-secondary { background: var(--beige); color: var(--text-dark); border: none; border-radius: var(--radius-md); padding: 18px 24px; font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background 0.2s, transform 0.1s; }
+  .btn-secondary:active { transform: scale(0.98); background: var(--beige-dark); }
+  .btn-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.25); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .btn-secondary .btn-icon { background: rgba(107,76,59,0.1); }
+  .history-strip { margin: 0; padding: 16px 18px; background: var(--beige); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .history-strip-label { font-size: 13px; font-weight: 600; color: var(--text-mid); }
+  .history-count { background: var(--terracotta); color: white; font-size: 11px; font-weight: 700; border-radius: 20px; padding: 3px 10px; }
+  .model-status { margin: 0; padding: 10px 16px; background: #FFF3CD; border-radius: var(--radius-sm); font-size: 12px; color: #856404; display: flex; align-items: center; gap: 8px; }
+  .model-status.ready { background: #D1FAE5; color: #065F46; }
+  .model-status.error { background: #FEE2E2; color: #B91C1C; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #F59E0B; flex-shrink: 0; animation: blink 1.2s ease-in-out infinite; }
+  .model-status.ready .status-dot { background: #10B981; animation: none; }
+  .model-status.error .status-dot { background: #EF4444; animation: none; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  #cameraScreen { background: #1a1005; position: relative; }
+  .camera-header { padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; position: absolute; top: 0; left: 0; right: 0; z-index: 20; background: linear-gradient(to bottom, rgba(26,16,5,0.7), transparent); }
+  .cam-btn { background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; }
+  .cam-title { color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; }
+  .camera-viewport { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; min-height: 300px; background: #000; }
+  #webcamVideo { width: 100%; height: 100%; object-fit: cover; }
+  .camera-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; z-index: 10; }
+  .guide-frame { width: 220px; height: 220px; position: relative; }
+  .guide-frame::before, .guide-frame::after, .guide-corner-br, .guide-corner-bl { content: ''; position: absolute; width: 32px; height: 32px; border-color: rgba(255,255,255,0.8); border-style: solid; }
+  .guide-frame::before { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 6px 0 0 0; }
+  .guide-frame::after { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 6px 0 0; }
+  .guide-corner-br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 6px 0; }
+  .guide-corner-bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 6px; }
+  .guide-hint { color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 14px; text-align: center; }
+  .live-badge { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: rgba(196,122,90,0.9); color: white; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 20px; z-index: 15; display: flex; align-items: center; gap: 6px; }
+  .live-dot { width: 6px; height: 6px; background: #fff; border-radius: 50%; animation: blink 1.2s ease-in-out infinite; }
+  .live-detection-card { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(26,16,5,0.95), rgba(26,16,5,0.7) 70%, transparent); padding: 40px 20px 20px; z-index: 15; }
+  .live-breed-name { font-family: 'Playfair Display', serif; font-size: 24px; color: white; font-weight: 700; margin-bottom: 4px; }
+  .live-confidence { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 14px; }
+  .confidence-bar { height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; margin-bottom: 16px; }
+  .confidence-fill { height: 100%; background: var(--terracotta); border-radius: 2px; transition: width 0.4s ease; }
+  .prob-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .prob-chip { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 5px 12px; font-size: 11px; color: rgba(255,255,255,0.8); display: flex; align-items: center; gap: 6px; }
+  .chip-pct { color: var(--blush); font-weight: 600; }
+  .camera-controls { padding: 16px 28px 32px; display: flex; justify-content: space-around; align-items: center; background: #1a1005; z-index: 20; }
+  .ctrl-btn { background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; }
+  .ctrl-btn.capture { width: 68px; height: 68px; background: var(--terracotta); box-shadow: 0 4px 20px rgba(196,122,90,0.5); }
+  .ctrl-btn:active { opacity: 0.7; }
+  #uploadScreen { background: var(--warm-white); }
+  .screen-header { padding: 14px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--beige); }
+  .back-btn { background: var(--beige); border: none; border-radius: 10px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dark); flex-shrink: 0; }
+  .screen-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; color: var(--text-dark); }
+  .upload-body { padding: 24px 24px 40px; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+  .upload-zone { border: 2px dashed var(--beige-dark); border-radius: var(--radius-lg); padding: 50px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; background: var(--beige); gap: 12px; position: relative; -webkit-tap-highlight-color: transparent; user-select: none; }
+  .upload-zone:active { background: var(--beige-dark); border-color: var(--terracotta); }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+  .upload-icon { width: 60px; height: 60px; background: var(--warm-white); border-radius: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 12px var(--shadow); pointer-events: none; }
+  .upload-zone-title { font-size: 16px; font-weight: 600; color: var(--text-dark); pointer-events: none; }
+  .upload-zone-hint { font-size: 12px; color: var(--text-light); line-height: 1.5; pointer-events: none; }
+  .upload-preview-wrap { border-radius: var(--radius-lg); overflow: hidden; background: var(--beige); display: none; }
+  .upload-preview-wrap img { width: 100%; max-height: 300px; object-fit: cover; display: block; }
+  .analyze-btn { background: var(--terracotta); color: white; border: none; border-radius: var(--radius-md); padding: 18px; font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background 0.2s, transform 0.1s; box-shadow: 0 4px 16px rgba(196,122,90,0.3); display: none; width: 100%; }
+  #loadingScreen { background: var(--warm-white); align-items: center; justify-content: center; gap: 20px; }
+  .paw-loader { display: flex; gap: 8px; align-items: flex-end; }
+  .paw-dot { width: 10px; height: 10px; background: var(--terracotta); border-radius: 50%; animation: paw-bounce 1s ease-in-out infinite; }
+  .paw-dot:nth-child(2) { animation-delay: 0.15s; }
+  .paw-dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes paw-bounce { 0%,100%{transform:translateY(0);opacity:0.4} 50%{transform:translateY(-14px);opacity:1} }
+  .loading-text { font-size: 14px; color: var(--text-mid); }
+  .loading-sub { font-size: 12px; color: var(--text-light); margin-top: -10px; }
+  #resultScreen { background: var(--warm-white); overflow-y: auto; }
+  .result-header-img { width: 100%; height: 280px; object-fit: cover; display: block; }
+  .result-badge-row { position: relative; margin-top: -24px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; z-index: 5; }
+  .result-match-badge { background: var(--terracotta); color: white; font-size: 13px; font-weight: 700; border-radius: 20px; padding: 8px 18px; box-shadow: 0 4px 14px rgba(196,122,90,0.4); }
+  .back-pill { background: white; border: 1.5px solid var(--beige-dark); color: var(--text-mid); border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; box-shadow: 0 2px 8px var(--shadow); }
+  .result-body { padding: 20px 24px 40px; }
+  .result-breed-name { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; }
+  .result-origin { font-size: 13px; color: var(--text-mid); margin-bottom: 20px; display: flex; align-items: center; gap: 6px; }
+  .personality-card { background: var(--beige); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px; line-height: 1.6; font-size: 14px; color: var(--text-mid); font-style: italic; }
+  .attrs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .attr-card { background: var(--beige); border-radius: var(--radius-sm); padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .attr-icon { font-size: 20px; line-height: 1; }
+  .attr-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); }
+  .attr-value { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+  .section-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 600; color: var(--text-dark); margin-bottom: 14px; }
+  .probs-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+  .prob-row { display: flex; align-items: center; gap: 12px; }
+  .prob-breed { font-size: 13px; font-weight: 500; color: var(--text-dark); width: 110px; flex-shrink: 0; }
+  .prob-bar-track { flex: 1; height: 8px; background: var(--beige); border-radius: 4px; overflow: hidden; }
+  .prob-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .prob-pct { font-size: 13px; font-weight: 700; width: 42px; text-align: right; flex-shrink: 0; }
+  .scan-again-btn { background: var(--terracotta); color: white; border: none; border-radius: var(--radius-md); padding: 18px; font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; width: 100%; transition: background 0.2s, transform 0.1s; box-shadow: 0 4px 16px rgba(196,122,90,0.3); margin-top: 8px; }
+  #historyScreen { background: var(--warm-white); }
+  .history-body { padding: 20px 24px 40px; flex: 1; overflow-y: auto; }
+  .history-empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .history-item { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--beige); }
+  .history-item:last-child { border-bottom: none; }
+  .history-thumb-placeholder { width: 52px; height: 52px; border-radius: 14px; background: var(--beige); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .history-info { flex: 1; }
+  .history-breed { font-size: 15px; font-weight: 600; color: var(--text-dark); }
+  .history-meta { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+  .history-pct { font-size: 14px; font-weight: 700; color: var(--terracotta); }
+  .error-toast { background: #FEE2E2; border: 1px solid #FECACA; border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px; color: #B91C1C; margin: 12px 24px; display: none; line-height: 1.5; }
+</style>
+</head>
+
+<body>
+<!-- SPLASH SCREEN -->
+<div id="splashScreen" style="
+  position: fixed; inset: 0; z-index: 9999;
+  background: #FDF8F2;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+">
+  <img src="splash.gif" alt="Cat" style="width:120px; height:120px; object-fit:contain; border-radius:20px;">
+  <div style="font-family:'Playfair Display',serif; font-size:32px; font-weight:700; color:#3A2D26; line-height:1.1; text-align:center;">
+    Cat Breed<br>Identifier
+  </div>
+  <div style="font-size:11px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#C47A5A;">
+    AI Vision
+  </div>
+  <div style="display:flex; gap:8px; align-items:flex-end; margin-top:10px;">
+    <div class="paw-dot" style="width:10px;height:10px;background:#C47A5A;border-radius:50%;animation:paw-bounce 1s ease-in-out infinite;"></div>
+    <div class="paw-dot" style="width:10px;height:10px;background:#C47A5A;border-radius:50%;animation:paw-bounce 1s ease-in-out 0.15s infinite;"></div>
+    <div class="paw-dot" style="width:10px;height:10px;background:#C47A5A;border-radius:50%;animation:paw-bounce 1s ease-in-out 0.3s infinite;"></div>
+  </div>
+</div>
+<div class="phone-shell">
+
+  <!-- HOME -->
+  <div id="homeScreen" class="screen active">
+    <div class="home-bg-blob"></div><div class="home-bg-blob-2"></div>
+    <div class="home-header">
+      <div class="app-label">AI Vision</div>
+      <div class="app-title">Cat Breed<br>Identifier</div>
+      <div class="app-tagline">Snap, scan, and discover your feline friend's breed</div>
+    </div>
+    <div class="hero-emoji">
+      <img src="cat2.gif" alt="Cat" style="width:100%; height:100%; object-fit:contain; border-radius:20px;">
+    </div>
+    <div class="home-actions">
+      <button class="btn-primary" onclick="startCamera()">
+        <div class="btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+        Scan with Camera
+      </button>
+      <button class="btn-secondary" onclick="showScreen('uploadScreen')">
+        <div class="btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B4C3B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+        Upload from Gallery
+      </button>
+      <div class="history-strip" onclick="showScreen('historyScreen')">
+        <div class="history-strip-label">🐾 Detection History</div>
+        <div class="history-count" id="historyBadge">0</div>
+      </div>
+    </div>
+    <div class="model-status" id="modelStatus">
+      <div class="status-dot"></div>
+      <span id="modelStatusText">Loading AI model...</span>
+    </div>
+  </div>
+
+  <!-- CAMERA -->
+  <div id="cameraScreen" class="screen">
+    <div class="camera-header">
+      <button class="cam-btn" onclick="stopCamera()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="cam-title">Live Scan</span>
+      <button class="cam-btn" onclick="flipCamera()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg></button>
+    </div>
+    <div class="camera-viewport">
+      <video id="webcamVideo" autoplay playsinline muted></video>
+      <div class="camera-overlay">
+        <div class="guide-frame"><div class="guide-corner-br"></div><div class="guide-corner-bl"></div></div>
+        <div class="guide-hint">Position cat within frame</div>
+      </div>
+      <div class="live-badge"><div class="live-dot"></div>Live</div>
+      <div class="live-detection-card" id="liveDetectionCard" style="display:none">
+        <div class="live-breed-name" id="liveBreedName">Detecting...</div>
+        <div class="live-confidence" id="liveConfidenceText">Analyzing...</div>
+        <div class="confidence-bar"><div class="confidence-fill" id="liveConfFill" style="width:0%"></div></div>
+        <div class="prob-chips" id="liveProbs"></div>
+      </div>
+    </div>
+    <div id="cameraError" class="error-toast" style="margin:8px 12px;"></div>
+    <div class="camera-controls">
+      <button class="ctrl-btn" onclick="togglePause()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="pauseIcon"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </button>
+      <button class="ctrl-btn capture" onclick="captureFrame()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></button>
+      <button class="ctrl-btn" onclick="stopCamera()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></button>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div id="uploadScreen" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('homeScreen')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <div class="screen-title">Upload Photo</div>
+    </div>
+    <div id="uploadError" class="error-toast"></div>
+    <div class="upload-body">
+      <label class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="upload-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C47A5A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+        <div class="upload-zone-title">Tap to select photo</div>
+        <div class="upload-zone-hint">JPG, PNG, BMP, GIF supported<br>Best results with good lighting</div>
+      </label>
+      <div class="upload-preview-wrap" id="previewWrap"><img id="previewImg" src="" alt="Preview"></div>
+      <button class="analyze-btn" id="analyzeBtn" onclick="analyzeImage()">Identify Breed →</button>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loadingScreen" class="screen">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+      <div class="paw-loader"><div class="paw-dot"></div><div class="paw-dot"></div><div class="paw-dot"></div></div>
+      <div class="loading-text">Identifying breed...</div>
+      <div class="loading-sub" id="loadingSubText">Running model...</div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="resultScreen" class="screen">
+    <img id="resultHeaderImg" class="result-header-img" src="" alt="Cat">
+    <div class="result-badge-row">
+      <div class="result-match-badge" id="resultMatchBadge">98% Match</div>
+      <button class="back-pill" onclick="showScreen('homeScreen')">Home</button>
+    </div>
+    <div class="result-body">
+      <div class="result-breed-name" id="resultBreedName"></div>
+      <div class="result-origin" id="resultOrigin"></div>
+      <div class="personality-card" id="resultPersonality"></div>
+      <div class="attrs-grid" id="attrsGrid"></div>
+      <div class="section-title">Breed Probabilities</div>
+      <div class="probs-list" id="resultProbsList"></div>
+      <button class="scan-again-btn" onclick="showScreen('homeScreen')">🐾 Scan Another Cat</button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="historyScreen" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('homeScreen')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <div class="screen-title">History</div>
+      <button style="margin-left:auto;background:none;border:none;color:var(--terracotta);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="clearHistory()">Clear</button>
+    </div>
+    <div class="history-body" id="historyBody"></div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script>
+// ---- BREED INFO (matches metadata.json labels order) ----
+// Labels: Bengal, Maine Coon, Persian, Siamese, Calico, Tuxedo, Tiger, Bombay, Sphynx, Turkish Van
+const BREED_INFO = {
+  'Bengal': {
+    origin: 'United States',
+    temperament: 'Active, curious, athletic, confident',
+    lifespan: '12–16 years',
+    weight: '4–7 kg',
+    coat: 'Short, dense, spotted or marbled',
+    careLevel: 'Medium',
+    activityLevel: 'Very High',
+    personality: 'Bengals carry the wild heart of a leopard in a domestic body. Highly intelligent and endlessly energetic, they thrive on play, exploration, and mental stimulation. Many Bengals are fascinated by water and will happily join you at the sink.'
+  },
+  'Maine Coon': {
+    origin: 'United States (Maine)',
+    temperament: 'Friendly, playful, gentle, dog-like',
+    lifespan: '13–14 years',
+    weight: '4–9 kg',
+    coat: 'Long, thick, shaggy, water-resistant',
+    careLevel: 'Medium',
+    activityLevel: 'Medium',
+    personality: 'Maine Coons are the gentle giants of the cat world. Affectionate without being clingy, they follow their humans around with quiet loyalty. They get along wonderfully with children and other pets, and their chirpy trills are utterly endearing.'
+  },
+  'Persian': {
+    origin: 'Iran (Persia)',
+    temperament: 'Gentle, calm, affectionate, quiet',
+    lifespan: '12–17 years',
+    weight: '3–6 kg',
+    coat: 'Long, thick, silky, dense undercoat',
+    careLevel: 'High',
+    activityLevel: 'Low',
+    personality: 'Persians are the royalty of the cat world — serene, dignified, and deeply affectionate with those they trust. They prefer calm environments and love lounging in comfort. Daily grooming of their luxurious coat is a must and doubles as bonding time.'
+  },
+  'Siamese': {
+    origin: 'Thailand (formerly Siam)',
+    temperament: 'Vocal, social, curious, demanding',
+    lifespan: '15–20 years',
+    weight: '3–5 kg',
+    coat: 'Short, fine, sleek, point-coloured',
+    careLevel: 'Medium',
+    activityLevel: 'High',
+    personality: 'Siamese cats are arguably the most talkative breed on the planet. They will narrate their entire day to you in a loud, raspy voice and expect you to listen. Deeply social and intelligent, they form intense bonds and do not enjoy being left alone.'
+  },
+  'Calico': {
+    origin: 'Various (colour pattern, not a breed)',
+    temperament: 'Independent, spirited, quirky, loyal',
+    lifespan: '12–16 years',
+    weight: '3–5 kg',
+    coat: 'Varies — short to long, tri-colour patches',
+    careLevel: 'Low–Medium',
+    activityLevel: 'Medium',
+    personality: 'Calicos are celebrated for their vivid tri-colour coats and bold personalities to match. Almost exclusively female due to genetics, they tend to be strong-willed, fiercely independent, and intensely devoted to one favourite person in the household.'
+  },
+  'Tuxedo': {
+    origin: 'Various (colour pattern, not a breed)',
+    temperament: 'Clever, charming, sociable, bold',
+    lifespan: '12–16 years',
+    weight: '3–6 kg',
+    coat: 'Short or long, black and white bicolour',
+    careLevel: 'Low–Medium',
+    activityLevel: 'Medium–High',
+    personality: 'Tuxedo cats are dressed for success and they know it. Known for their dapper black-and-white coats, they tend to be outgoing, confident, and remarkably intelligent. Many owners report tuxedo cats displaying an almost aristocratic sense of self-importance.'
+  },
+  'Tiger': {
+    origin: 'Various (tabby pattern, not a breed)',
+    temperament: 'Playful, adventurous, affectionate, hardy',
+    lifespan: '12–18 years',
+    weight: '3–7 kg',
+    coat: 'Short or long, bold mackerel or classic tabby stripes',
+    careLevel: 'Low',
+    activityLevel: 'Medium–High',
+    personality: 'Tiger-patterned (tabby) cats are among the most common and beloved cats in the world. Their striped coats echo their wild ancestors, and their personalities are just as vivid — playful, curious, and endlessly entertaining. A classic companion for any home.'
+  },
+  'Bombay': {
+    origin: 'United States',
+    temperament: 'Affectionate, curious, energetic, people-oriented',
+    lifespan: '12–16 years',
+    weight: '3–5 kg',
+    coat: 'Short, sleek, jet-black, patent-leather shine',
+    careLevel: 'Low',
+    activityLevel: 'Medium–High',
+    personality: 'Bred to resemble a miniature black panther, the Bombay is all looks and all love. They crave human attention and will shadow their owners throughout the day. Highly adaptable and sociable, they thrive in busy households and get along with almost everyone.'
+  },
+  'Sphynx': {
+    origin: 'Canada (Toronto)',
+    temperament: 'Extroverted, warm, mischievous, acrobatic',
+    lifespan: '8–14 years',
+    weight: '3–5 kg',
+    coat: 'Hairless (fine peach-fuzz), wrinkled skin',
+    careLevel: 'High',
+    activityLevel: 'High',
+    personality: 'The Sphynx is naked, warm to the touch, and absolutely shameless about demanding affection. Despite their alien appearance, they are among the warmest and most dog-like cats in temperament. They need regular skin cleaning instead of brushing, and they hate the cold.'
+  },
+  'Turkish Van': {
+    origin: 'Turkey (Lake Van region)',
+    temperament: 'Energetic, independent, playful, water-loving',
+    lifespan: '12–17 years',
+    weight: '4–8 kg',
+    coat: 'Semi-long, cashmere-soft, white with coloured tail and cap',
+    careLevel: 'Medium',
+    activityLevel: 'Very High',
+    personality: 'Turkish Vans are famously called the "swimming cat" — they have a natural love of water that sets them apart from virtually every other breed. Athletic, intelligent, and fiercely independent, they bond deeply with family but on their own terms. Their plush, chalk-white coat is surprisingly easy to maintain.'
+  }
+};
+// ---- SPLASH SCREEN ----
+function dismissSplash() {
+  const splash = document.getElementById('splashScreen');
+  splash.style.transition = 'opacity 0.5s ease';
+  splash.style.opacity = '0';
+  setTimeout(() => splash.style.display = 'none', 500);
+}
+
+// Show splash for 2.5s, then fade out
+// Also auto-dismiss once the model finishes loading (whichever is later)
+let splashTimer = setTimeout(dismissSplash, 2500);
+// ---- STATE ----
+let tfModel = null;
+let modelLoading = false;
+let BREED_CLASSES = []; // populated from metadata.json
+let INPUT_SIZE = 224;   // populated from metadata.json
+let metadataLoaded = false;
+
+let detectionHistory = [];
+try { detectionHistory = JSON.parse(localStorage.getItem('catHistory') || '[]'); } catch(e){}
+
+let webcamStream = null;
+let webcamActive = false;
+let isPaused = false;
+let liveTimer = null;
+let pendingImageData = null;
+let currentFacingMode = 'environment';
+
+// ---- UI HELPERS ----
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'historyScreen') renderHistory();
+  if (id !== 'cameraScreen' && webcamActive) stopCameraStream();
+}
+
+function showError(elementId, msg) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.style.display = 'none'; }, 8000);
+}
+
+function setModelStatus(state, text) {
+  const el = document.getElementById('modelStatus');
+  const txt = document.getElementById('modelStatusText');
+  el.className = 'model-status' + (state ? ' ' + state : '');
+  txt.textContent = text;
+}
+
+function updateHistoryBadge() {
+  const el = document.getElementById('historyBadge');
+  if (el) el.textContent = detectionHistory.length;
+}
+updateHistoryBadge();
+
+// ---- LOAD METADATA ----
+async function loadMetadata() {
+  const resp = await fetch('./metadata.json');
+  if (!resp.ok) throw new Error('metadata.json not found (' + resp.status + ')');
+  const meta = await resp.json();
+  BREED_CLASSES = meta.labels;
+  INPUT_SIZE = meta.imageSize || 224;
+  metadataLoaded = true;
+}
+
+// ---- LOAD MODEL ----
+async function loadModel() {
+  if (tfModel) return tfModel;
+  if (modelLoading) {
+    while (modelLoading) await new Promise(r => setTimeout(r, 100));
+    return tfModel;
+  }
+  modelLoading = true;
+  setModelStatus('', 'Loading metadata...');
+  try {
+    // 1. Load metadata to get labels and input size
+    if (!metadataLoaded) await loadMetadata();
+
+    // 2. Load model topology
+    setModelStatus('', 'Loading model...');
+    const modelResp = await fetch('./model.json');
+    if (!modelResp.ok) throw new Error('model.json not found (' + modelResp.status + ')');
+    const modelJSON = await modelResp.json();
+
+    // 3. Load weights binary
+    setModelStatus('', 'Loading weights...');
+    const weightsPath = modelJSON.weightsManifest[0].paths[0];
+    const weightResp = await fetch(weightsPath);
+    if (!weightResp.ok) throw new Error('weights file not found (' + weightResp.status + ')');
+    const weightData = await weightResp.arrayBuffer();
+
+    // 4. Assemble and load
+    const artifacts = {
+      modelTopology: modelJSON.modelTopology,
+      weightSpecs: modelJSON.weightsManifest[0].weights,
+      weightData: weightData
+    };
+    tfModel = await tf.loadLayersModel(tf.io.fromMemory(artifacts));
+
+    // 5. Warm up
+    tf.tidy(() => {
+      const dummy = tf.zeros([1, INPUT_SIZE, INPUT_SIZE, 3]);
+      tfModel.predict(dummy);
+    });
+
+    setModelStatus('ready', 'Model ready ✓ — ' + BREED_CLASSES.length + ' breeds');
+    return tfModel;
+  } catch(e) {
+    setModelStatus('error', 'Failed: ' + e.message);
+    throw e;
+  } finally {
+    modelLoading = false;
+  }
+}
+
+// ---- INFERENCE ----
+async function runInference(imageEl) {
+  const model = await loadModel();
+  return tf.tidy(() => {
+    let t = tf.browser.fromPixels(imageEl, 3);
+    t = tf.image.resizeBilinear(t, [INPUT_SIZE, INPUT_SIZE]);
+    // Teachable Machine MobileNet normalisation: [0, 1]
+    t = t.toFloat().div(255.0).expandDims(0);
+    const preds = model.predict(t);
+    const vals = Array.from(preds.dataSync());
+    const maxIdx = vals.reduce((best, v, i) => v > vals[best] ? i : best, 0);
+    const probabilities = BREED_CLASSES
+      .map((breed, i) => ({ breed, confidence: vals[i] }))
+      .sort((a, b) => b.confidence - a.confidence);
+    return {
+      breed: BREED_CLASSES[maxIdx],
+      confidence: vals[maxIdx],
+      probabilities
+    };
+  });
+}
+
+async function runInferenceFromDataUrl(dataUrl) {
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl; });
+  return runInference(img);
+}
+
+// ---- PRELOAD ---- (replace your existing preload block)
+let modelReady = false;
+let splashDone = false;
+
+function tryDismissSplash() {
+  if (modelReady && !splashDone) {
+    splashDone = true;
+    clearTimeout(splashTimer);
+    dismissSplash();
+  }
+}
+
+// Dismiss after minimum 2s so splash doesn't flash too quickly
+setTimeout(() => { splashDone = false; tryDismissSplash(); }, 2000);
+
+(async () => {
+  try {
+    await loadModel();
+    modelReady = true;
+    tryDismissSplash();
+  } catch(e) {
+    console.error('Model preload failed:', e);
+    modelReady = true;   // still dismiss on error
+    tryDismissSplash();
+  }
+})();
+// ---- CAMERA ----
+async function startCamera() {
+  showScreen('cameraScreen');
+  document.getElementById('liveDetectionCard').style.display = 'none';
+  document.getElementById('cameraError').style.display = 'none';
+  try {
+    stopCameraStream();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    webcamStream = stream;
+    const video = document.getElementById('webcamVideo');
+    video.srcObject = stream;
+    await new Promise(res => { video.onloadedmetadata = res; });
+    await video.play();
+    webcamActive = true; isPaused = false;
+    startLiveDetection();
+  } catch(err) {
+    showError('cameraError', 'Camera error: ' + err.message + '. Try uploading an image instead.');
+  }
+}
+
+function stopCameraStream() {
+  if (webcamStream) { webcamStream.getTracks().forEach(t => t.stop()); webcamStream = null; }
+  webcamActive = false;
+  clearInterval(liveTimer); liveTimer = null;
+}
+
+function stopCamera() { stopCameraStream(); showScreen('homeScreen'); }
+
+async function flipCamera() {
+  currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+  await startCamera();
+}
+
+function togglePause() {
+  isPaused = !isPaused;
+  const icon = document.getElementById('pauseIcon');
+  icon.innerHTML = isPaused
+    ? '<polygon points="5 3 19 12 5 21 5 3"/>'
+    : '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+}
+
+function startLiveDetection() {
+  clearInterval(liveTimer);
+  liveTimer = setInterval(async () => {
+    if (!webcamActive || isPaused) return;
+    const video = document.getElementById('webcamVideo');
+    if (!video || video.readyState < 2 || video.videoWidth === 0) return;
+    try { updateLiveUI(await runInference(video)); } catch(e) { console.warn('Live error:', e.message); }
+  }, 2500);
+}
+
+function updateLiveUI(result) {
+  document.getElementById('liveDetectionCard').style.display = 'block';
+  document.getElementById('liveBreedName').textContent = result.breed;
+  const pct = (result.confidence * 100).toFixed(1);
+  document.getElementById('liveConfidenceText').textContent = pct + '% confidence';
+  document.getElementById('liveConfFill').style.width = pct + '%';
+  // Show top 3 chips only
+  document.getElementById('liveProbs').innerHTML = result.probabilities.slice(0, 3).map(p =>
+    `<div class="prob-chip">${p.breed} <span class="chip-pct">${(p.confidence*100).toFixed(1)}%</span></div>`
+  ).join('');
+}
+
+async function captureFrame() {
+  const video = document.getElementById('webcamVideo');
+  if (!video || video.videoWidth === 0) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const imageData = canvas.toDataURL('image/jpeg', 0.9);
+  stopCameraStream();
+  showScreen('loadingScreen');
+  try {
+    const result = await runInferenceFromDataUrl(imageData);
+    addToHistory(result); displayResult(result, imageData);
+  } catch(err) { showScreen('homeScreen'); alert('Could not identify: ' + err.message); }
+}
+
+// ---- UPLOAD ----
+document.getElementById('fileInput').addEventListener('change', function() {
+  if (this.files && this.files.length > 0) handleFile(this.files[0]);
+});
+
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.style.borderColor = 'var(--terracotta)'; });
+uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = ''; });
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.style.borderColor = ''; if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) { showError('uploadError', 'Please select an image file.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingImageData = e.target.result;
+    const img = document.getElementById('previewImg');
+    img.onload = () => {
+      document.getElementById('previewWrap').style.display = 'block';
+      document.getElementById('analyzeBtn').style.display = 'block';
+      document.getElementById('uploadZone').style.display = 'none';
+    };
+    img.src = pendingImageData;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzeImage() {
+  if (!pendingImageData) return;
+  const imgData = pendingImageData; pendingImageData = null;
+  document.getElementById('uploadZone').style.display = 'flex';
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('analyzeBtn').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  showScreen('loadingScreen');
+  try {
+    const result = await runInferenceFromDataUrl(imgData);
+    addToHistory(result); displayResult(result, imgData);
+  } catch(err) { showScreen('uploadScreen'); showError('uploadError', '⚠️ ' + err.message); }
+}
+
+// ---- RESULT ----
+function displayResult(result, imageData) {
+  document.getElementById('resultHeaderImg').src = imageData;
+  const pct = (result.confidence * 100).toFixed(1);
+  document.getElementById('resultMatchBadge').textContent = pct + '% Match';
+  document.getElementById('resultBreedName').textContent = result.breed;
+  const info = BREED_INFO[result.breed] || {
+    origin: 'Unknown',
+    temperament: 'Unique and wonderful',
+    lifespan: 'Varies',
+    weight: 'Varies',
+    coat: 'Varies',
+    careLevel: 'Medium',
+    activityLevel: 'Medium',
+    personality: 'A truly unique cat with its own special character and charm.'
+  };
+  document.getElementById('resultOrigin').innerHTML = `<span>🌍</span><span>${info.origin}</span>`;
+  document.getElementById('resultPersonality').textContent = info.personality;
+  document.getElementById('attrsGrid').innerHTML = [
+    { icon:'⏳', label:'Lifespan',    value: info.lifespan },
+    { icon:'⚖️', label:'Weight',      value: info.weight },
+    { icon:'🐾', label:'Coat',        value: info.coat },
+    { icon:'💛', label:'Temperament', value: info.temperament },
+    { icon:'🌟', label:'Care Level',  value: info.careLevel },
+    { icon:'⚡', label:'Activity',    value: info.activityLevel }
+  ].map(a => `<div class="attr-card">
+    <div class="attr-icon">${a.icon}</div>
+    <div class="attr-label">${a.label}</div>
+    <div class="attr-value">${a.value || '—'}</div>
+  </div>`).join('');
+
+  const maxP = Math.max(...result.probabilities.map(p => p.confidence));
+  document.getElementById('resultProbsList').innerHTML = result.probabilities.map(p => {
+    const isTop = p.breed === result.breed;
+    return `<div class="prob-row">
+      <div class="prob-breed">${p.breed}</div>
+      <div class="prob-bar-track">
+        <div class="prob-bar-fill" style="width:${maxP > 0 ? (p.confidence / maxP * 100).toFixed(1) : 0}%;background:${isTop ? 'var(--terracotta)' : 'var(--sage)'}"></div>
+      </div>
+      <div class="prob-pct" style="color:${isTop ? 'var(--terracotta)' : 'var(--text-mid)'}">${(p.confidence * 100).toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+  showScreen('resultScreen');
+}
+
+// ---- HISTORY ----
+function addToHistory(result) {
+  detectionHistory.unshift({
+    breed: result.breed,
+    confidence: result.confidence,
+    timestamp: new Date().toLocaleString()
+  });
+  if (detectionHistory.length > 50) detectionHistory.pop();
+  try { localStorage.setItem('catHistory', JSON.stringify(detectionHistory)); } catch(e){}
+  updateHistoryBadge();
+}
+
+function renderHistory() {
+  const body = document.getElementById('historyBody');
+  if (!detectionHistory.length) {
+    body.innerHTML = `<div class="history-empty-state">
+      <div style="font-size:48px">🐾</div>
+      <div style="font-size:16px;font-weight:600;color:var(--text-mid)">No detections yet</div>
+      <div style="font-size:13px">Scan a cat to get started!</div>
+    </div>`;
+    return;
+  }
+  body.innerHTML = detectionHistory.map(item => `
+    <div class="history-item">
+      <div class="history-thumb-placeholder">🐱</div>
+      <div class="history-info">
+        <div class="history-breed">${item.breed}</div>
+        <div class="history-meta">${item.timestamp}</div>
+      </div>
+      <div class="history-pct">${(item.confidence * 100).toFixed(1)}%</div>
+    </div>`).join('');
+}
+
+function clearHistory() {
+  if (confirm('Clear all history?')) {
+    detectionHistory = [];
+    try { localStorage.removeItem('catHistory'); } catch(e){}
+    updateHistoryBadge(); renderHistory();
+  }
+}
+// ---- SERVICE WORKER REGISTRATION ----
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW failed:', err));
+  });
+}
+</script>
+</body>
+</html>
