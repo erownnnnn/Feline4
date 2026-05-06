@@ -1,6 +1,6 @@
 {
-  "name": "Cat Breed Identifier",
-  "short_name": "CatBreedID",
+  "name": "Feline",
+  "short_name": "Feline",
   "description": "Identify cat breeds using AI vision",
   "start_url": "./",
   "scope": "./",
